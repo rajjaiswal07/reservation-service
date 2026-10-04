@@ -4,12 +4,15 @@ import com.pytm.reservationservice.dto.CreateEventRequest;
 import com.pytm.reservationservice.dto.CreateSeatsRequest;
 import com.pytm.reservationservice.dto.SeatResponse;
 import com.pytm.reservationservice.service.EventService;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 import java.util.Map;
 
+@Tag(name = "Events", description = "Event and seat management APIs")
 @RestController
 @RequestMapping("/api/events")
 public class EventController {
@@ -20,6 +23,7 @@ public class EventController {
         this.eventService = eventService;
     }
 
+    @Operation(summary = "Create an event")
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
     public Map<String, Long> createEvent(
@@ -28,6 +32,7 @@ public class EventController {
         return Map.of("eventId", eventId);
     }
 
+    @Operation(summary = "Create seats for an event")
     @PostMapping("/{eventId}/seats")
     @ResponseStatus(HttpStatus.CREATED)
     public Map<String, String> createSeats(
@@ -37,6 +42,7 @@ public class EventController {
         return Map.of("message", "Seats created successfully");
     }
 
+    @Operation(summary = "Get seats for an event")
     @GetMapping("/{eventId}/seats")
     public List<SeatResponse> getSeats(
             @PathVariable Long eventId,
