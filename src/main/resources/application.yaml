@@ -32,3 +32,6 @@ management:
     health:
       probes:
         enabled: true
+
+reservation:
+  max-per-user: ${MAX_RESERVATIONS_PER_USER:5}

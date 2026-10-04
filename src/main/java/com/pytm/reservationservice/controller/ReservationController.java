@@ -19,7 +19,9 @@ public class ReservationController {
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
     public ReservationResponse createReservation(
+            @RequestHeader("Idempotency-Key") String idempotencyKey,
             @RequestBody CreateReservationRequest request) {
-        return reservationService.reserveSeats(request);
+
+        return reservationService.reserveSeats(request, idempotencyKey);
     }
 }
