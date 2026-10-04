@@ -6,6 +6,8 @@ import com.pytm.reservationservice.service.ReservationService;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.UUID;
+
 @RestController
 @RequestMapping("/api/reservations")
 public class ReservationController {
@@ -23,5 +25,12 @@ public class ReservationController {
             @RequestBody CreateReservationRequest request) {
 
         return reservationService.reserveSeats(request, idempotencyKey);
+    }
+
+    @GetMapping("/{reservationId}")
+    public ReservationResponse getReservation(
+            @PathVariable UUID reservationId) {
+
+        return reservationService.getReservation(reservationId);
     }
 }

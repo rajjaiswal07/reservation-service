@@ -3,6 +3,7 @@ package com.pytm.reservationservice.service;
 import com.pytm.reservationservice.dto.CreateReservationRequest;
 import com.pytm.reservationservice.dto.ReservationResponse;
 import com.pytm.reservationservice.exception.ApiException;
+import com.pytm.reservationservice.metrics.ReservationMetrics;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatus;
 import org.springframework.jdbc.core.JdbcTemplate;
@@ -21,11 +22,15 @@ public class ReservationService {
 
     private final JdbcTemplate jdbcTemplate;
     private final int maxReservationsPerUser;
+    private final ReservationMetrics metrics;
 
     public ReservationService(
             JdbcTemplate jdbcTemplate,
+            ReservationMetrics metrics,
             @Value("${reservation.max-per-user:5}") int maxReservationsPerUser) {
+
         this.jdbcTemplate = jdbcTemplate;
+        this.metrics = metrics;
         this.maxReservationsPerUser = maxReservationsPerUser;
     }
 
@@ -100,6 +105,8 @@ public class ReservationService {
                     reservation.id()
             );
 
+            metrics.idempotentReplay();
+
             return new ReservationResponse(
                     reservation.id(),
                     reservation.userId(),
@@ -135,6 +142,9 @@ public class ReservationService {
 
         if (reservationCount != null
                 && reservationCount >= maxReservationsPerUser) {
+
+            metrics.declinedPerUserLimit();
+
             throw new ApiException(
                     HttpStatus.CONFLICT,
                     "User has reached the reservation limit"
@@ -180,6 +190,9 @@ public class ReservationService {
 
         if (lockedSeats.stream()
                 .anyMatch(seat -> !"AVAILABLE".equals(seat.status()))) {
+
+            metrics.declinedSeatTaken();
+
             throw new ApiException(
                     HttpStatus.CONFLICT,
                     "One or more seats are no longer available"
@@ -220,6 +233,8 @@ public class ReservationService {
                 """.formatted(placeholders),
                 seatIds.toArray()
         );
+
+        metrics.reservationConfirmed();
 
         return new ReservationResponse(
                 reservationId,
@@ -294,5 +309,50 @@ public class ReservationService {
             String userId,
             String status,
             String requestHash) {
+    }
+
+    public ReservationResponse getReservation(UUID reservationId) {
+
+        List<ReservationResponse> results = jdbcTemplate.query(
+                """
+                SELECT id, user_id, status
+                FROM reservations
+                WHERE id = ?
+                """,
+                (rs, rowNum) -> {
+
+                    UUID id = rs.getObject("id", UUID.class);
+                    String userId = rs.getString("user_id");
+                    String status = rs.getString("status");
+
+                    List<Long> seatIds = jdbcTemplate.queryForList(
+                            """
+                            SELECT seat_id
+                            FROM reservation_seats
+                            WHERE reservation_id = ?
+                            ORDER BY seat_id
+                            """,
+                            Long.class,
+                            id
+                    );
+
+                    return new ReservationResponse(
+                            id,
+                            userId,
+                            status,
+                            seatIds
+                    );
+                },
+                reservationId
+        );
+
+        if (results.isEmpty()) {
+            throw new ApiException(
+                    HttpStatus.NOT_FOUND,
+                    "Reservation not found"
+            );
+        }
+
+        return results.get(0);
     }
 }
