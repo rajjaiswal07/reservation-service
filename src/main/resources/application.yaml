@@ -35,3 +35,7 @@ management:
 
 reservation:
   max-per-user: ${MAX_RESERVATIONS_PER_USER:5}
+
+logging:
+  pattern:
+    console: "%d{yyyy-MM-dd'T'HH:mm:ss.SSSXXX} %-5level [%X{correlationId}] %logger{36} - %msg%n"
